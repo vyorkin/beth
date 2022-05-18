@@ -79,9 +79,7 @@ contract Fight is Owned {
             revert InsufficientBetAmount(msg.value);
         }
 
-        if (
-            bets[msg.sender][fighterA] == 0 && bets[msg.sender][fighterB] == 0
-        ) {
+        if (bets[msg.sender][_fighter] == 0) {
             bettors[_fighter].push(msg.sender);
         }
         bets[msg.sender][_fighter] += msg.value;

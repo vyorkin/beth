@@ -22,9 +22,7 @@ import "solmate/auth/Owned.sol";
 
 error InsufficientBetAmount(uint256 amount);
 error InvalidFigther(uint256 figher);
-error BetAlreadyPlaced();
 error Finished();
-error MaximumBettors();
 error PayoutFailed(address receiver, uint256 amount);
 
 contract Fight is Owned {
@@ -36,18 +34,13 @@ contract Fight is Owned {
     event NewPayout(address indexed bettor, uint256 amount);
     event FightFinished(uint256 winner, uint256 loser);
 
-    struct Bet {
-        uint256 fighter;
-        uint256 amount;
-    }
-
     uint256 public constant MIN_BET = 1000;
     uint256 public constant MAX_BETTORS = 100;
 
     uint256 private id;
     uint256 private fighterA;
     uint256 private fighterB;
-    address payable[] private bettors;
+    mapping(uint256 => address[]) private bettors;
     mapping(address => mapping(uint256 => uint256)) private bets;
     mapping(uint256 => uint256) public total;
     bool private finished;
@@ -85,17 +78,14 @@ contract Fight is Owned {
         if (msg.value < MIN_BET) {
             revert InsufficientBetAmount(msg.value);
         }
-        if (bettors.length > MAX_BETTORS) {
-            revert MaximumBettors();
-        }
-        if (bets[msg.sender].fighter > 0) {
-            revert BetAlreadyPlaced();
-        }
 
-        bets[msg.sender].amount = msg.value;
-        bets[msg.sender].fighter = _fighter;
+        if (
+            bets[msg.sender][fighterA] == 0 && bets[msg.sender][fighterB] == 0
+        ) {
+            bettors[_fighter].push(msg.sender);
+        }
+        bets[msg.sender][_fighter] += msg.value;
         total[_fighter] += msg.value;
-        bettors.push(payable(msg.sender));
 
         emit NewBet(msg.sender, _fighter, msg.value);
     }
@@ -109,29 +99,16 @@ contract Fight is Owned {
     {
         finished = true;
 
-        address payable[MAX_BETTORS] memory winners;
-        uint256 winnersCount = 0;
-
-        for (uint256 i = 0; i < bettors.length; i++) {
-            address payable bettor = bettors[i];
-            if (bets[bettor].fighter == _winner) {
-                winners[winnersCount] = bettor;
-                winnersCount++;
+        for (uint256 i = 0; i < bettors[_winner].length; i++) {
+            address payable bettor = payable(bettors[_winner][i]);
+            uint256 amount = bets[bettor][_winner];
+            uint256 reward = (amount *
+                (10000 + ((total[_loser] * 10000) / total[_winner]))) / 10000;
+            (bool sent, ) = bettor.call{value: reward}("");
+            if (!sent) {
+                revert PayoutFailed(bettor, reward);
             }
-        }
-
-        for (uint256 i = 0; i < winners.length; i++) {
-            if (winners[i] != address(0)) {
-                uint256 amount = bets[winners[i]].amount;
-                uint256 reward = (amount *
-                    (10000 + ((total[_loser] * 10000) / total[_winner]))) /
-                    10000;
-                (bool sent, ) = winners[i].call{value: reward}("");
-                if (!sent) {
-                    revert PayoutFailed(winners[i], reward);
-                }
-                emit NewPayout(winners[i], reward);
-            }
+            emit NewPayout(bettor, reward);
         }
 
         emit FightFinished(_winner, _loser);

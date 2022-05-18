@@ -20,17 +20,26 @@ contract FightTest is Test {
     }
 
     function testBet() public {
+        startHoax(charlie, 100 ether);
+        fight.bet{value: 20 ether}(FIGHTER_B);
+        fight.bet{value: 10 ether}(FIGHTER_B);
+        fight.bet{value: 20 ether}(FIGHTER_B);
+        vm.stopPrank();
+
         hoax(bob, 100 ether);
         fight.bet{value: 50 ether}(FIGHTER_B);
 
-        hoax(charlie, 100 ether);
-        fight.bet{value: 50 ether}(FIGHTER_B);
-
-        hoax(eve, 100 ether);
-        fight.bet{value: 60 ether}(FIGHTER_A);
-
-        hoax(alice, 100 ether);
+        startHoax(eve, 100 ether);
+        fight.bet{value: 10 ether}(FIGHTER_A);
         fight.bet{value: 20 ether}(FIGHTER_A);
+        fight.bet{value: 20 ether}(FIGHTER_A);
+        fight.bet{value: 10 ether}(FIGHTER_A);
+        vm.stopPrank();
+
+        startHoax(alice, 100 ether);
+        fight.bet{value: 10 ether}(FIGHTER_A);
+        fight.bet{value: 10 ether}(FIGHTER_A);
+        vm.stopPrank();
 
         assertEq(fight.total(FIGHTER_A), 80 ether);
         assertEq(fight.total(FIGHTER_B), 100 ether);

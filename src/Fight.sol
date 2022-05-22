@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "solmate/auth/Owned.sol";
+import {Owned} from "solmate/auth/Owned.sol";
 
 // win = bet + (bet / total_bets_on_winner * total_bets_on_loser)
 
@@ -21,8 +21,9 @@ import "solmate/auth/Owned.sol";
 //   eve balance: 100 - 60 + 135 = 175 ETH
 
 error InsufficientBetAmount(uint256 amount);
-error InvalidFigther(uint256 figher);
+error InvalidFighter(uint256 figher);
 error Finished();
+error MaxBettors();
 error PayoutFailed(address receiver, uint256 amount);
 
 contract Fight is Owned {
@@ -35,7 +36,6 @@ contract Fight is Owned {
     event FightFinished(uint256 winner, uint256 loser);
 
     uint256 public constant MIN_BET = 1000;
-    uint256 public constant MAX_BETTORS = 100;
 
     uint256 private id;
     uint256 private fighterA;
@@ -43,7 +43,7 @@ contract Fight is Owned {
     mapping(uint256 => address[]) private bettors;
     mapping(address => mapping(uint256 => uint256)) private bets;
     mapping(uint256 => uint256) public total;
-    bool private finished;
+    bool public finished;
 
     constructor(
         uint256 _id,
@@ -64,7 +64,7 @@ contract Fight is Owned {
 
     modifier validFighter(uint256 _fighter) {
         if (_fighter != fighterA && _fighter != fighterB) {
-            revert InvalidFigther(_fighter);
+            revert InvalidFighter(_fighter);
         }
         _;
     }
@@ -78,7 +78,6 @@ contract Fight is Owned {
         if (msg.value < MIN_BET) {
             revert InsufficientBetAmount(msg.value);
         }
-
         if (bets[msg.sender][_fighter] == 0) {
             bettors[_fighter].push(msg.sender);
         }
